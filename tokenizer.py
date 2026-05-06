@@ -148,11 +148,33 @@ class block(nn.Module):
 
 class TransformerBlock:
     def __init__(self, embeddings_size, num_q_heads, num_kv_heads, ff_size, vocab_size, num_blocks =36, theta=10000):
+        self.num_blocks = num_blocks
+        self.embeddings_size= embeddings_size
+        self.num_q_heads = num_q_heads
+        self.num_kv_heads = num_kv_heads
+        self.ff_size = ff_size
+        self.vocab_size = vocab_size
+        self.theta = theta
         self.token_embed = TokenEmbed(vocab_size, embeddings_size)
-        self.block = nn.ModuleList([block() for n in num_blocks])
+        self.blocks = nn.ModuleList([block(embeddings, embeddings_size, num_q_heads, num_kv_heads, ff_size, vocab_size, theta=10000) for n in num_blocks])
+        self.final_rms = nn.RMSNorm()
+        self.final_ll = nn.Linear(embeddings_size, vocab_size)
         
     def FeedForward(self):
-        pass
+
+        x = self.token_embed(self.vocab_size, self.embeddings_size)
+
+        for block in self.blocks:
+            x = block(x)
+
+        x = self.final_rms(x)
+        x = self.final_ll(x)
+
+        return x
+
+
+
+        
 
     
         
