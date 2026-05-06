@@ -147,8 +147,9 @@ class block(nn.Module):
     
 
 class TransformerBlock:
-    def __init__(self):
-        pass
+    def __init__(self, embeddings_size, num_q_heads, num_kv_heads, ff_size, vocab_size, num_blocks =36, theta=10000):
+        self.token_embed = TokenEmbed(vocab_size, embeddings_size)
+        self.block = nn.ModuleList([block() for n in num_blocks])
         
     def FeedForward(self):
         pass
