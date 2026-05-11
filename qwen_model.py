@@ -21,17 +21,17 @@ class RotaryPositonalEmbed:
 
 
     def apply_rope(self, x):
-        print('inside apply rope', x.shape)
+        #print('inside apply rope', x.shape)
         batch, tokens, hiddem_dim, _ = x.shape
         assert hiddem_dim % 2 == 0, "should be zero"
         positions = torch.arange(tokens).float()
         angles = torch.einsum('s, d -> sd', positions, self.inv)
         cos = torch.cos(angles).unsqueeze(0).unsqueeze(2)
         sin = torch.sin(angles).unsqueeze(0).unsqueeze(2)
-        print('cos.shape', cos.shape)
+        #print('cos.shape', cos.shape)
         x_even = x[:,:,:, 0::2]
         x_odd = x[:,:,:, 1::2]
-        print('x_even.shape', x_even.shape)
+        #print('x_even.shape', x_even.shape)
         x_rot_even = x_even * cos - x_odd * sin
         x_rot_odd = x_even * sin + x_odd * cos
         x_out = torch.empty_like(x)
@@ -62,12 +62,12 @@ class MaskedGroupedQuery(nn.Module):
         self.rope = RotaryPositonalEmbed(self.head_dim, theta)
 
     def forward(self, x):
-        print('inside MaskedGroupedQuery checking x shape', x.shape)
+        #print('inside MaskedGroupedQuery checking x shape', x.shape)
         batch, seq_len, _ = x.shape
         q = self.q(x)
         k = self.k(x)
         v = self.v(x)
-        print('checking q k v', q.shape)
+        #print('checking q k v', q.shape)
 
         q = q.view(batch, seq_len, self.num_q_heads, self.head_dim).transpose(1, 2)
         k = k.view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
@@ -127,9 +127,9 @@ class block(nn.Module):
 
     def forward(self, x):
         y = self.rms_norm1(x)
-        print('inside block y 1', y.shape)
+        #print('inside block y 1', y.shape)
         y = self.masked_grouped_query(y)
-        print('inside block y 2', y.shape)        
+        #print('inside block y 2', y.shape)        
         y = y + x
         z = self.rms_norm2(y)
         z = self.ff(z)
@@ -152,15 +152,26 @@ class TransformerBlock(nn.Module):
         self.final_rms = nn.RMSNorm(embeddings_size)
         self.final_ll = nn.Linear(embeddings_size, vocab_size)
         
-    def forward(self, inputs):
+    def forward(self, inputs, labels = None):
 
         x = self.token_embed(inputs)
-        print('inside transformer block x', x.shape)
+        #print('inside transformer block x', x.shape)
 
         for block in self.blocks:
             x = block(x)
 
         x = self.final_rms(x)
         x = self.final_ll(x)
+
+        if labels is not None:
+            original_logits = x[:, :-1, :].contiguous()
+            target_logits = labels[:,1:].contiguous()
+
+            loss = F.cross_entropy(original_logits.view(-1, self.vocab_size), target_logits.view(-1))
+
+        return {
+            "logits": x ,
+            "loss": loss
+        }
 
         return x

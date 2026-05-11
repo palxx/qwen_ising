@@ -12,9 +12,9 @@ print(inputs)
 
 model = TransformerBlock(vocab_size=config.vocab_size)
 
-x = model(inputs['input_ids'])   
+out = model(inputs['input_ids'], labels=inputs['input_ids'])   
         
-print(x.shape)
+print(out)
 
 
 
